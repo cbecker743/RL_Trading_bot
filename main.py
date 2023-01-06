@@ -1,3 +1,6 @@
+# # deactivate GPU
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import agent as agnt
 import tqdm
 import numpy as np
@@ -5,12 +8,12 @@ import pickle
 from env import TradingEnv
 
 ## main loop settings ##
-EPISODES = 5
-AGGREGATE_STATS_EVERY = 1
+EPISODES = 25
+AGGREGATE_STATS_EVERY = 5
 BEST_REWARD = -np.inf
 
 ## agent settings ##
-REPLAY_MEMORY_SIZE = 5_000
+REPLAY_MEMORY_SIZE = 10_000
 MIN_REPLAY_MEMORY_SIZE = 5_00
 MINIBATCH_SIZE = 64
 DISCOUNT = 0.99
@@ -19,10 +22,10 @@ EPSILON = 1
 MIN_EPSILON = 0.001
 LR = 0.001
 MODEL_NAME = 'test_model'
-CUSTOM_TB = True
+CUSTOM_TB = False
 
 ## env settings ##
-MAXIMUM_STEPS = 1
+MAXIMUM_STEPS = 24*7
 INITIAL_BALANCE = 10_000
 TRANSACTION_FEE = 2
 RENDER_INTERVAL = 250
@@ -53,6 +56,7 @@ for episode in tqdm.tqdm(range(1, EPISODES+1)):
         agent.train(done)
         current_state = new_state
         step += 1
+    agent.clear_garbage()
     history['ep_rewards'].append(episode_reward)
     history['eps_history'].append(agent.epsilon)
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
@@ -77,6 +81,7 @@ for episode in tqdm.tqdm(range(1, EPISODES+1)):
 
 with open(f'./models/{MODEL_NAME}/history.pkl', 'wb') as f:
     pickle.dump(history, f)
-
 with open(f'./models/{MODEL_NAME}/action_history.pkl', 'wb') as f:
     pickle.dump(env.action_history, f)
+with open(f'./models/{MODEL_NAME}/balance_history.pkl', 'wb') as f:
+    pickle.dump(env.balance_history, f)

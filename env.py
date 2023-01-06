@@ -35,7 +35,8 @@ class TradingEnv:
             print(self.load_new_data)
             dl.scrape_candles_to_csv(
                 'dataframe.csv', 'binance', 3, 'BTC/USDT', self.candle_length, '2015-01-0100:00:00Z', 1000)
-        df = pd.read_csv('./data/Binance/dataframe.csv', header=0, index_col='timestamp')
+        df = pd.read_csv('./data/Binance/dataframe.csv',
+                         header=0, index_col='timestamp')
         df = dl.preprocess_dataset(
             df, self.candle_length, self.future_steps, self.Y_COLS)
         return df

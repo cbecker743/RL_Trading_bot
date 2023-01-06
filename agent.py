@@ -7,6 +7,10 @@ from keras.models import Sequential
 from keras.layers import Dense, LSTM
 from keras.optimizers import Adam
 from collections import deque
+# from memory_profiler import profile ## useful to track memory leaks
+# necessary to collect garbage after model.predict or model.fit (Keras has a bug, which is not solved yet)
+import gc
+
 
 print('Using TensorFlow {:s} with {:d} GPUs'.format(
     tf.__version__, len(tf.config.experimental.list_physical_devices('GPU'))))
@@ -55,7 +59,7 @@ class DQNAgent:
             action = np.argmax(self.model.predict(
                 np.array(state).reshape(-1, *self.env.observation_space), verbose=0))
         return action
-    
+
     def decay_epsilon(self):
         if self.epsilon > self.min_epsilon:
             self.epsilon *= self.epsilon_decay
@@ -65,7 +69,8 @@ class DQNAgent:
         c = max(self.min_epsilon, c0 * alpha**iteration)
         return c
 
-    def train(self, terminal_state):
+    # @profile # Decorator for memory profiler
+    def train(self, done):
         if len(self.replay_memory) < self.min_replay_memory_size:
             return
         minibatch = random.sample(self.replay_memory, self.minibatch_size)
@@ -95,9 +100,13 @@ class DQNAgent:
         self.model.fit(np.array(X), np.array(
             y), batch_size=self.minibatch_size, verbose=0, shuffle=False)
 
-        if terminal_state:
+        if done:
             self.target_update_counter += 1
 
         if self.target_update_counter > self.update_target_every:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
+
+    def clear_garbage(self):
+        gc.collect()
+        tf.keras.backend.clear_session()
