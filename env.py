@@ -48,24 +48,29 @@ class TradingEnv:
             df.loc[df.index[0+step]:df.index[self.lookback_window-1+step]][self.Y_COLS])
         return state, state_target
 
-    def perform_action(self, action, current_price, amount):
+    def perform_action(self, action, current_price):
         if action == 0:
+            # print('Action 0')
             pass
         elif action == 1 and self.balance > 0:
-            self.balance -= amount*current_price + self.transaction_fee
-            self.wallet_balance += amount*current_price
+            # print(f'Action 1: Bought Crypto at current price of {current_price}')
+            amount_crypto_bought = random.uniform(0, (self.balance-self.transaction_fee)/current_price)
+            self.balance -= amount_crypto_bought*current_price + self.transaction_fee
+            self.wallet_balance += amount_crypto_bought
         elif action == 2 and self.wallet_balance > 0:
-            self.balance += amount*current_price - self.transaction_fee
-            self.wallet_balance -= amount*current_price
+            # print(f'Action 2: Sold Crypto at current price of {current_price}')
+            amount_crypto_sold = random.uniform(0, self.wallet_balance)
+            self.balance += amount_crypto_sold*current_price - self.transaction_fee
+            self.wallet_balance -= amount_crypto_sold
         self.action_list.append(action)
         self.balance_dict['Wallet_balance'].append(self.wallet_balance)
         self.balance_dict['Balance'].append(self.balance)
 
-    def update_networth(self):
-        self.net_worth = self.balance + self.wallet_balance
+    def update_networth(self, current_price):
+        self.net_worth = self.balance + self.wallet_balance*current_price
 
     def render(self):
-        print(f'Step: {self.episode_step}, Net_worth: {self.net_worth}')
+        print(f'Step: {self.episode_step}, Net_worth: {self.net_worth}, Crypto_balance: {self.wallet_balance} BTC, Fiat_balance: {self.balance} USD')
 
     def reset(self):
         self.balance = self.initial_balance
@@ -79,13 +84,12 @@ class TradingEnv:
 
     def step(self, action, current_state, episode_counter):
         current_networth = self.net_worth
-        current_price = random.uniform(
-            current_state[-1][0], current_state[-1][3])
+        # current_price = random.uniform(
+        #     current_state[-1][0], current_state[-1][3])
+        current_price = current_state[-1][0] # always take open price of last candle
         self.episode_step += 1
-        if self.episode_step % self.render_interval == 0:
-            self.render()
-        self.perform_action(action, current_price, amount=0.1)
-        self.update_networth()
+        self.perform_action(action, current_price)
+        self.update_networth(current_price)
         reward = self.net_worth - current_networth
         if self.net_worth <= self.initial_balance/2 or self.episode_step >= self.maximum_steps:
             done = True
@@ -95,5 +99,7 @@ class TradingEnv:
             done = False
 
         next_observation, _ = self.get_observation(self.df, self.episode_step)
+        if self.episode_step % self.render_interval == 0:
+            self.render()
 
         return next_observation, reward, done
