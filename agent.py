@@ -49,6 +49,17 @@ class DQNAgent:
 
         return model
 
+    ####### Dueling DQN #########
+    # K = keras.backend
+    # input_states = keras.layers.Input(shape=[4])
+    # hidden1 = keras.layers.Dense(32, activation="elu")(input_states)
+    # hidden2 = keras.layers.Dense(32, activation="elu")(hidden1)
+    # state_values = keras.layers.Dense(1)(hidden2)
+    # raw_advantages = keras.layers.Dense(n_outputs)(hidden2)
+    # advantages = raw_advantages - K.max(raw_advantages, axis=1, keepdims=True)
+    # Q_values = state_values + advantages
+    # model = keras.Model(inputs=[input_states], outputs=[Q_values])
+
     def update_replay_memory(self, transition):
         self.replay_memory.append(transition)
 
