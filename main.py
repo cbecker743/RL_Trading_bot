@@ -1,6 +1,6 @@
 # # deactivate GPU
-# import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import os
 import agent as agnt
 import tqdm
 import numpy as np
@@ -8,7 +8,7 @@ import pickle
 from env import TradingEnv
 
 ## main loop settings ##
-EPISODES = 25
+EPISODES = 100
 AGGREGATE_STATS_EVERY = 5
 BEST_REWARD = -np.inf
 
@@ -28,7 +28,7 @@ CUSTOM_TB = False
 MAXIMUM_STEPS = 24*7
 INITIAL_BALANCE = 10_000
 TRANSACTION_FEE = 2
-RENDER_INTERVAL = 250
+RENDER_INTERVAL = 50
 LOOKBACK_WINDOW = 24
 CANDLE_LENGTH = '1h'
 
@@ -74,14 +74,17 @@ for episode in tqdm.tqdm(range(1, EPISODES+1)):
         if BEST_REWARD < max_ep_rewards:
             BEST_REWARD = max_ep_rewards
             agent.model.save(
-                f'./models/{MODEL_NAME}/model.h5')
+                f'./models/{MODEL_NAME}/model/model.h5')
     # Choose one epsilon decaying scheme
     # agent.decay_epsilon()
     agent.epsilon = agent.multiplicative_exp_decay_epsilon(EPSILON, episode-1)
 
-with open(f'./models/{MODEL_NAME}/history.pkl', 'wb') as f:
+if not os.path.isdir(f'./models/{MODEL_NAME}/history/'):
+    os.mkdir(f'./models/{MODEL_NAME}/history/')
+
+with open(f'./models/{MODEL_NAME}/history/history.pkl', 'wb') as f:
     pickle.dump(history, f)
-with open(f'./models/{MODEL_NAME}/action_history.pkl', 'wb') as f:
+with open(f'./models/{MODEL_NAME}/history/action_history.pkl', 'wb') as f:
     pickle.dump(env.action_history, f)
-with open(f'./models/{MODEL_NAME}/balance_history.pkl', 'wb') as f:
+with open(f'./models/{MODEL_NAME}/history/balance_history.pkl', 'wb') as f:
     pickle.dump(env.balance_history, f)
