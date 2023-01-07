@@ -42,11 +42,11 @@ class TradingEnv:
         return df
 
     def get_observation(self, df, step):
-        state = np.array(
+        OHCLV_features = np.array(
             df.loc[df.index[0+step]:df.index[self.lookback_window-1+step]][self.X_COLS])
-        state_target = np.array(
-            df.loc[df.index[0+step]:df.index[self.lookback_window-1+step]][self.Y_COLS])
-        return state, state_target
+        external_balance_features = np.array([self.balance, self.wallet_balance])
+        state = (OHCLV_features, external_balance_features)
+        return state
 
     def perform_action(self, action, current_price):
         if action == 0:
@@ -79,14 +79,12 @@ class TradingEnv:
         self.episode_step = 0
         self.action_list = []
         self.balance_dict = {'Wallet_balance': [], 'Balance': []}
-        current_state, _ = self.get_observation(self.df, self.episode_step)
+        current_state = self.get_observation(self.df, self.episode_step)
         return current_state
 
     def step(self, action, current_state, episode_counter):
         current_networth = self.net_worth
-        # current_price = random.uniform(
-        #     current_state[-1][0], current_state[-1][3])
-        current_price = current_state[-1][0] # always take open price of last candle
+        current_price = current_state[0][-1][3] # always take closing price of last candle
         self.episode_step += 1
         self.perform_action(action, current_price)
         self.update_networth(current_price)
@@ -98,7 +96,7 @@ class TradingEnv:
         else:
             done = False
 
-        next_observation, _ = self.get_observation(self.df, self.episode_step)
+        next_observation = self.get_observation(self.df, self.episode_step)
         if self.episode_step % self.render_interval == 0:
             self.render()
 

@@ -3,6 +3,7 @@ import numpy as np
 import random
 import custom_tensorboard as ctb
 import time
+from tensorflow import keras
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 from keras.optimizers import Adam
@@ -37,15 +38,30 @@ class DQNAgent:
             self.tensorboard = ctb.ModifiedTensorBoard(
                 log_dir=f'./logs/{model_name}-{int(time.time())}')
 
+    # def create_model(self):
+    #     model = Sequential()
+    #     model.add(LSTM(16, return_sequences=True,
+    #               input_shape=self.env.observation_space))
+    #     model.add(LSTM(16, return_sequences=True))
+    #     model.add(LSTM(8, return_sequences=True))
+    #     model.add(LSTM(8))
+    #     model.add(Dense(len(self.env.action_space), activation='linear'))
+    #     model.compile(loss='mse', optimizer=Adam(lr=self.lr))
+
+    #     return model
+
     def create_model(self):
-        model = Sequential()
-        model.add(LSTM(16, return_sequences=True,
-                  input_shape=self.env.observation_space))
-        model.add(LSTM(16, return_sequences=True))
-        model.add(LSTM(8, return_sequences=True))
-        model.add(LSTM(8))
-        model.add(Dense(len(self.env.action_space), activation='linear'))
+        input = keras.layers.Input(shape=self.env.observation_space)
+        hidden1 = keras.layers.LSTM(16, return_sequences=True)(input)
+        hidden2 = keras.layers.LSTM(16, return_sequences=True)(hidden1)
+        hidden3 = keras.layers.LSTM(8, return_sequences=True)(hidden2)
+        hidden4 = keras.layers.LSTM(8)(hidden3)
+        external = keras.layers.Input(shape=2)
+        concat = keras.layers.Concatenate()([hidden4, external])
+        ouput = keras.layers.Dense(len(self.env.action_space), activation='linear')(concat)
+        model = keras.Model(inputs=[input, external], outputs=[ouput])
         model.compile(loss='mse', optimizer=Adam(lr=self.lr))
+        model.summary()
 
         return model
 
@@ -67,8 +83,8 @@ class DQNAgent:
         if np.random.random() < self.epsilon:
             action = np.random.choice(self.env.action_space)
         else:
-            action = np.argmax(self.model.predict(
-                np.array(state).reshape(-1, *self.env.observation_space), verbose=0))
+            action = np.argmax(self.model.predict([
+                np.array(state[0]).reshape(-1, *self.env.observation_space), np.array(state[1]).reshape(1, 2)], verbose=0))
         return action
 
     def decay_epsilon(self):
@@ -85,14 +101,17 @@ class DQNAgent:
         if len(self.replay_memory) < self.min_replay_memory_size:
             return
         minibatch = random.sample(self.replay_memory, self.minibatch_size)
-        current_states = np.array([transition[0] for transition in minibatch])
-        q_values_list = self.model.predict(current_states, verbose=0)
+        current_states_ohclv = [transition[0][0] for transition in minibatch]
+        current_states_external_balance = [transition[0][1] for transition in minibatch]
+        q_values_list = self.model.predict([np.array(current_states_ohclv), np.array(current_states_external_balance)], verbose=0)
 
-        future_states = np.array([transition[3] for transition in minibatch])
+        future_states_ohclv = [transition[3][0] for transition in minibatch]
+        future_states_external_balance = [transition[3][1] for transition in minibatch]
         future_q_values_list = self.target_model.predict(
-            future_states, verbose=0)
+            [np.array(future_states_ohclv), np.array(future_states_external_balance)], verbose=0)
 
-        X = []
+        X_ohclv = []
+        X_external_balance = []
         y = []
 
         for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
@@ -105,10 +124,11 @@ class DQNAgent:
             current_q_values = q_values_list[index]
             current_q_values[action] = new_q
 
-            X.append(current_state)
+            X_ohclv.append(current_state[0])
+            X_external_balance.append(current_state[1])
             y.append(current_q_values)
 
-        self.model.fit(np.array(X), np.array(
+        self.model.fit([np.array(X_ohclv), np.array(X_external_balance)], np.array(
             y), batch_size=self.minibatch_size, verbose=0, shuffle=False)
 
         if done:
