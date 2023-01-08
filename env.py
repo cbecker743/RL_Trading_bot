@@ -27,7 +27,7 @@ class TradingEnv:
         self.render_interval = render_interval
         self.action_list = []
         self.action_history = {}
-        self.balance_dict = {'Wallet_balance': [], 'Balance': []}
+        self.balance_dict = {'Wallet_balance': [], 'Balance': [], 'Current_price': []}
         self.balance_history = {}
 
     def read_df(self):
@@ -69,19 +69,21 @@ class TradingEnv:
             self.balance += amount_crypto_sold*current_price - self.transaction_fee
             self.wallet_balance -= amount_crypto_sold
         else:
-            action = 10
+            print('Action 9: None of the other actions was possible (Should be fixed)')
+            action = 9
         if borrow_transaction_fee:
-            # print('Remove borrowed transaction fee again from fiat balance')
+            # print('Return borrowed transaction fee')
             self.balance -= amount_borrowed
         self.action_list.append(action)
         self.balance_dict['Wallet_balance'].append(self.wallet_balance)
         self.balance_dict['Balance'].append(self.balance)
+        self.balance_dict['Current_price'].append(current_price)
 
     def update_networth(self, current_price):
         self.net_worth = self.balance + self.wallet_balance*current_price
 
-    def render(self):
-        print(f'Step: {self.episode_step}, Net_worth: {self.net_worth}, Crypto_balance: {self.wallet_balance} BTC, Fiat_balance: {self.balance} USD')
+    def render(self, current_price):
+        print(f'Step: {self.episode_step}, Net_worth: {self.net_worth}, Crypto_balance: {self.wallet_balance} BTC, Fiat_balance: {self.balance} USD, BTC_Price: {current_price} USD')
 
     def reset(self):
         self.balance = self.initial_balance
@@ -89,7 +91,7 @@ class TradingEnv:
         self.wallet_balance = 0
         self.episode_step = 0
         self.action_list = []
-        self.balance_dict = {'Wallet_balance': [], 'Balance': []}
+        self.balance_dict = {'Wallet_balance': [], 'Balance': [], 'Current_price': []}
         current_state = self.get_observation(self.df, self.episode_step)
         return current_state
 
@@ -109,6 +111,6 @@ class TradingEnv:
 
         next_observation = self.get_observation(self.df, self.episode_step)
         if self.episode_step % self.render_interval == 0:
-            self.render()
+            self.render(current_price)
 
         return next_observation, reward, done
