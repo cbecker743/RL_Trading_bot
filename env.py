@@ -20,7 +20,7 @@ class TradingEnv:
         self.wallet_balance = 0
         self.net_worth = self.balance + self.wallet_balance
         self.transaction_fee = transaction_fee
-        self.action_space = np.array([0, 1, 2])
+        self.action_space = np.arange(0,9)
         # 5 equals the OHCLV data
         self.observation_space = (self.lookback_window, 5)
         self.maximum_steps = maximum_steps
@@ -49,19 +49,29 @@ class TradingEnv:
         return state
 
     def perform_action(self, action, current_price):
+        borrow_transaction_fee = False
+        if self.balance < self.transaction_fee and action in [5,6,7,8]:
+            borrow_transaction_fee = True
+            # print(Enable bot to sell Crypto when having zero fiat balance)
+            self.balance += self.transaction_fee
         if action == 0:
             # print('Action 0')
             pass
-        elif action == 1 and self.balance > 0:
-            # print(f'Action 1: Bought Crypto at current price of {current_price}')
-            amount_crypto_bought = random.uniform(0, (self.balance-self.transaction_fee)/current_price)
+        elif action in [1,2,3,4] and self.balance > self.transaction_fee:
+            # print(f'Action [1,2,3,4]: Bought Crypto at a current price of {current_price}')
+            amount_crypto_bought =((0.25 * action * self.balance) - self.transaction_fee)/current_price
             self.balance -= amount_crypto_bought*current_price + self.transaction_fee
             self.wallet_balance += amount_crypto_bought
-        elif action == 2 and self.wallet_balance > 0:
-            # print(f'Action 2: Sold Crypto at current price of {current_price}')
-            amount_crypto_sold = random.uniform(0, self.wallet_balance)
+        elif action in [5,6,7,8] and self.balance >= self.transaction_fee:
+            # print(f'Action [5,6,7,8]: Sold Crypto at a current price of {current_price}')
+            amount_crypto_sold = 0.25 * (action-4) * self.wallet_balance
             self.balance += amount_crypto_sold*current_price - self.transaction_fee
             self.wallet_balance -= amount_crypto_sold
+        else:
+            action = 10
+        if borrow_transaction_fee:
+            # print('Remove borrowed transaction fee again from fiat balance')
+            self.balance -= self.transaction_fee
         self.action_list.append(action)
         self.balance_dict['Wallet_balance'].append(self.wallet_balance)
         self.balance_dict['Balance'].append(self.balance)
