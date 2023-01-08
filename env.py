@@ -58,18 +58,27 @@ class TradingEnv:
         if action == 0:
             # print('Action 0')
             pass
-        elif action in [1,2,3,4] and self.balance > self.transaction_fee:
-            # print(f'Action [1,2,3,4]: Bought Crypto at a current price of {current_price}')
-            amount_crypto_bought =((0.25 * action * self.balance) - self.transaction_fee)/current_price
-            self.balance -= amount_crypto_bought*current_price + self.transaction_fee
-            self.wallet_balance += amount_crypto_bought
+        elif action in [1,2,3,4]:
+            if self.balance > self.transaction_fee:
+                # print(f'Action [1,2,3,4]: Bought Crypto at a current price of {current_price}')
+                amount_crypto_bought =((0.25 * action * self.balance) - self.transaction_fee)/current_price
+                self.balance -= amount_crypto_bought*current_price + self.transaction_fee
+                self.wallet_balance += amount_crypto_bought
+            elif self.balance == 0:
+                action += 10 # Just for evaluation purposes do differ these events 
+                # print('Action [1,2,3,4] has been choosen but has no effect since there is no fiat money left to buy')
+                pass
         elif action in [5,6,7,8] and self.balance >= self.transaction_fee:
             # print(f'Action [5,6,7,8]: Sold Crypto at a current price of {current_price}')
             amount_crypto_sold = 0.25 * (action-4) * self.wallet_balance
             self.balance += amount_crypto_sold*current_price - self.transaction_fee
             self.wallet_balance -= amount_crypto_sold
         else:
-            print('Action 9: None of the other actions was possible (Should be fixed)')
+            print('Start')
+            print('Action 9: None of the other actions was possible (Should not appear and therefore should be fixed)')
+            self.render(current_price)
+            print(f'Action {action}')
+            print('End')
             action = 9
         if borrow_transaction_fee:
             # print('Return borrowed transaction fee')
