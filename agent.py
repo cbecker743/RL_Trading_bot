@@ -61,7 +61,8 @@ class DQNAgent:
         dense1 = keras.layers.Dense(64, activation='relu')(concat)
         dense2 = keras.layers.Dense(32, activation='relu')(dense1)
         dense3 = keras.layers.Dense(16, activation='relu')(dense2)
-        ouput = keras.layers.Dense(len(self.env.action_space), activation='linear')(dense3)
+        ouput = keras.layers.Dense(
+            len(self.env.action_space), activation='linear')(dense3)
         model = keras.Model(inputs=[input, external], outputs=[ouput])
         model.compile(loss='mse', optimizer=Adam(lr=self.lr))
         model.summary()
@@ -105,11 +106,14 @@ class DQNAgent:
             return
         minibatch = random.sample(self.replay_memory, self.minibatch_size)
         current_states_ohclv = [transition[0][0] for transition in minibatch]
-        current_states_external_balance = [transition[0][1] for transition in minibatch]
-        q_values_list = self.model.predict([np.array(current_states_ohclv), np.array(current_states_external_balance)], verbose=0)
+        current_states_external_balance = [
+            transition[0][1] for transition in minibatch]
+        q_values_list = self.model.predict([np.array(current_states_ohclv), np.array(
+            current_states_external_balance)], verbose=0)
 
         future_states_ohclv = [transition[3][0] for transition in minibatch]
-        future_states_external_balance = [transition[3][1] for transition in minibatch]
+        future_states_external_balance = [
+            transition[3][1] for transition in minibatch]
         future_q_values_list = self.target_model.predict(
             [np.array(future_states_ohclv), np.array(future_states_external_balance)], verbose=0)
 

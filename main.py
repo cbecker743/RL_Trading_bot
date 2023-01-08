@@ -8,7 +8,7 @@ import pickle
 from env import TradingEnv
 
 ## main loop settings ##
-EPISODES = 100
+EPISODES = 5
 AGGREGATE_STATS_EVERY = 5
 BEST_REWARD = -np.inf
 
@@ -28,7 +28,7 @@ CUSTOM_TB = False
 MAXIMUM_STEPS = 24*7
 INITIAL_BALANCE = 10_000
 TRANSACTION_FEE = 2
-RENDER_INTERVAL = 50
+RENDER_INTERVAL = 10
 LOOKBACK_WINDOW = 24
 CANDLE_LENGTH = '1h'
 
@@ -84,7 +84,5 @@ if not os.path.isdir(f'./models/{MODEL_NAME}/history/'):
 
 with open(f'./models/{MODEL_NAME}/history/history.pkl', 'wb') as f:
     pickle.dump(history, f)
-with open(f'./models/{MODEL_NAME}/history/action_history.pkl', 'wb') as f:
-    pickle.dump(env.action_history, f)
-with open(f'./models/{MODEL_NAME}/history/balance_history.pkl', 'wb') as f:
-    pickle.dump(env.balance_history, f)
+with open(f'./models/{MODEL_NAME}/history/evaluation_history.pkl', 'wb') as f:
+    pickle.dump(env.evaluation_dict_history, f)
