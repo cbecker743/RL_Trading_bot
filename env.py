@@ -53,7 +53,8 @@ class TradingEnv:
         if self.balance < self.transaction_fee and action in [5,6,7,8]:
             borrow_transaction_fee = True
             # print(Enable bot to sell Crypto when having zero fiat balance)
-            self.balance += self.transaction_fee
+            amount_borrowed = self.transaction_fee - self.balance
+            self.balance += amount_borrowed
         if action == 0:
             # print('Action 0')
             pass
@@ -71,7 +72,7 @@ class TradingEnv:
             action = 10
         if borrow_transaction_fee:
             # print('Remove borrowed transaction fee again from fiat balance')
-            self.balance -= self.transaction_fee
+            self.balance -= amount_borrowed
         self.action_list.append(action)
         self.balance_dict['Wallet_balance'].append(self.wallet_balance)
         self.balance_dict['Balance'].append(self.balance)
