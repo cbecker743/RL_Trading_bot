@@ -8,7 +8,7 @@ import pickle
 from env import TradingEnv
 
 ## main loop settings ##
-EPISODES = 5
+EPISODES = 100
 AGGREGATE_STATS_EVERY = 5
 BEST_REWARD = -np.inf
 
@@ -31,12 +31,14 @@ TRANSACTION_FEE = 2
 RENDER_INTERVAL = 10
 LOOKBACK_WINDOW = 24
 CANDLE_LENGTH = '1h'
+ADD_TECHNICAL_INDICATORS = True
+ADD_TIME_INFO = True
 
 history = {'ep_rewards': [], 'avg_ep_rewards': [],
            'min_ep_rewards': [], 'max_ep_rewards': [], 'eps_history': []}
 env = TradingEnv(maximum_steps=MAXIMUM_STEPS, initial_balance=INITIAL_BALANCE,
                  transaction_fee=TRANSACTION_FEE, render_interval=RENDER_INTERVAL, lookback_window=LOOKBACK_WINDOW,
-                 candle_length=CANDLE_LENGTH)
+                 candle_length=CANDLE_LENGTH, add_technical_indicators=ADD_TECHNICAL_INDICATORS, add_time_info=ADD_TIME_INFO)
 agent = agnt.DQNAgent(env, replay_memory_size=REPLAY_MEMORY_SIZE,
                       min_replay_memory_size=MIN_REPLAY_MEMORY_SIZE, minibatch_size=MINIBATCH_SIZE, discount=DISCOUNT,
                       update_target_every=UPDATE_TARGET_EVERY,

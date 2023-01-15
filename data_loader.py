@@ -74,13 +74,14 @@ def scrape_candles_to_csv(filename, exchange_id, max_retries, symbol, timeframe,
     print('Saved', len(ohlcv), 'candles from', exchange.iso8601(ohlcv[0][0]), 'to', exchange.iso8601(ohlcv[-1][0]), 'to', filename)
 
 
-def preprocess_dataset(df, freq, future_steps, y_cols):
+def preprocess_dataset(df, freq, future_steps, y_cols=None, add_target=False):
     df.index = pd.to_datetime(df.index, unit='ms') # convert timestamps into datetimes
     df.index.name = 'Datetime'
     df = df[~df.index.duplicated(keep='first')] # remove duplicated indices
     df = df.sort_index() # sort index to make sure indices are in the right order
     df = df.asfreq(freq) # fill all areas where the diff of the timeindex is > 1min
     df = df.interpolate() # interpolate the nans which are the result of the previous operation
-    df[y_cols[0]] = df[['close']].shift(-future_steps) # shift target values into same row to last feature entry
-    df = df[0:-1] # remove last timestep of dataframe where target is nan
+    if add_target:
+        df[y_cols[0]] = df[['close']].shift(-future_steps) # shift target values into same row to last feature entry
+        df = df[0:-1] # remove last timestep of dataframe where target is nan
     return df

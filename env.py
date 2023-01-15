@@ -1,17 +1,19 @@
 import data_loader as dl
 import pandas as pd
+import pandas_ta as ta
 import numpy as np
 
 
 class TradingEnv:
-    def __init__(self, maximum_steps, initial_balance, transaction_fee, render_interval, lookback_window, candle_length, load_new_data=False):
+    def __init__(self, maximum_steps, initial_balance, transaction_fee, render_interval, 
+    lookback_window, candle_length, add_technical_indicators, add_time_info, load_new_data=False):
         self.load_new_data = load_new_data
         self.candle_length = candle_length
         # only necessary to calculate prediction targets(not used for RL yet)
         self.future_steps = 1
-        self.Y_COLS = ['close_target']
-        self.X_COLS = ['open', 'high', 'low', 'close', 'volume']
-        self.df = self.read_df()
+        self.X_COLS = None
+        add_technical_indicators
+        self.df = self.read_df(add_technical_indicators, add_time_info)
         self.lookback_window = lookback_window
         self.episode_step = 0
         self.initial_balance = initial_balance
@@ -21,14 +23,14 @@ class TradingEnv:
         self.transaction_fee = transaction_fee
         self.action_space = np.arange(0, 9)
         # 5 equals the OHCLV data
-        self.observation_space = (self.lookback_window, 5)
+        self.observation_space = (self.lookback_window, len(self.X_COLS))
         self.maximum_steps = maximum_steps
         self.render_interval = render_interval
         self.evaluation_dict = {'Wallet_balance': [], 'Balance': [
         ], 'Current_price': [], 'Datetime': [], 'Action': []}
         self.evaluation_dict_history = {}
 
-    def read_df(self):
+    def read_df(self, add_technical_indicators, add_time_info):
         if self.load_new_data:
             print(self.load_new_data)
             dl.scrape_candles_to_csv(
@@ -36,7 +38,24 @@ class TradingEnv:
         df = pd.read_csv('./data/Binance/dataframe.csv',
                          header=0, index_col='timestamp')
         df = dl.preprocess_dataset(
-            df, self.candle_length, self.future_steps, self.Y_COLS)
+            df, self.candle_length, self.future_steps)
+        if add_technical_indicators:
+            MyStrategy = ta.Strategy(
+                name="DCSMA10",
+                ta=[
+                    {"kind": "ohlc4"},
+                    {"kind": "sma", "length": 10},
+                    {"kind": "donchian", "lower_length": 10, "upper_length": 15},
+                    {"kind": "ema", "close": "OHLC4", "length": 10, "suffix": "OHLC4"},
+                ]
+            )
+            df.ta.strategy(MyStrategy)
+        if add_time_info:
+            df['month'] = df.index.month -1
+            df['day_of_week'] = df.index.day % 7
+            df['time_of_day'] = df.index.hour
+        self.X_COLS = df.columns.tolist()
+        df = df.dropna()
         return df
 
     def get_observation(self, df, step):
@@ -64,13 +83,13 @@ class TradingEnv:
                     (0.25 * action * self.balance) - self.transaction_fee)/current_price
                 self.balance -= amount_crypto_bought*current_price + self.transaction_fee
                 self.wallet_balance += amount_crypto_bought
-            elif self.balance == 0:
+            elif self.balance <=  self.transaction_fee:
                 action += 9  # Just for evaluation purposes do differ these events
                 # print('Action [1,2,3,4] has been choosen but has no effect since there is no fiat money left to buy')
                 pass
             else:
                 print(
-                    'Action 9: None of the other actions was possible (Should not appear and therefore should be fixed)')
+                    'Action 9.1: None of the other actions was possible (Should not appear and therefore should be fixed)')
                 action = 9
         elif action in [5, 6, 7, 8] and self.balance >= self.transaction_fee:
             # print(f'Action [5,6,7,8]: Sold Crypto at a current price of {current_price}')
@@ -78,7 +97,7 @@ class TradingEnv:
             self.balance += amount_crypto_sold*current_price - self.transaction_fee
             self.wallet_balance -= amount_crypto_sold
         else:
-            print('Action 9: None of the other actions was possible (Should not appear and therefore should be fixed)')
+            print('Action 9.2: None of the other actions was possible (Should not appear and therefore should be fixed)')
             action = 9
         if borrow_transaction_fee:
             # print('Return borrowed transaction fee')
