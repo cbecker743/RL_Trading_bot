@@ -2,18 +2,22 @@ import data_loader as dl
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
+# import helpers
 
 
 class TradingEnv:
-    def __init__(self, maximum_steps, initial_balance, transaction_fee, render_interval, 
-    lookback_window, candle_length, add_technical_indicators, add_time_info, load_new_data=False):
+    def __init__(self, maximum_steps, initial_balance, transaction_fee, render_interval,
+                 lookback_window, candle_length, add_technical_indicators, add_time_info, start_time, run_mode, load_new_data):
         self.load_new_data = load_new_data
         self.candle_length = candle_length
         # only necessary to calculate prediction targets(not used for RL yet)
+        self.episode_start_index = None
         self.future_steps = 1
         self.X_COLS = None
         add_technical_indicators
+        self.start_time = start_time
         self.df = self.read_df(add_technical_indicators, add_time_info)
+        self.start_index = len(self.df[:self.start_time]) - 1
         self.lookback_window = lookback_window
         self.episode_step = 0
         self.initial_balance = initial_balance
@@ -23,6 +27,7 @@ class TradingEnv:
         self.transaction_fee = transaction_fee
         self.action_space = np.arange(0, 9)
         # 5 equals the OHCLV data
+        self.run_mode = run_mode
         self.observation_space = (self.lookback_window, len(self.X_COLS))
         self.maximum_steps = maximum_steps
         self.render_interval = render_interval
@@ -32,10 +37,10 @@ class TradingEnv:
 
     def read_df(self, add_technical_indicators, add_time_info):
         if self.load_new_data:
-            print(self.load_new_data)
+            print('asd')
             dl.scrape_candles_to_csv(
                 'dataframe.csv', 'binance', 3, 'BTC/USDT', self.candle_length, '2015-01-0100:00:00Z', 1000)
-        df = pd.read_csv('./data/Binance/dataframe.csv',
+        df = pd.read_csv(f'./data/Binance/dataframe_{self.candle_length}.csv',
                          header=0, index_col='timestamp')
         df = dl.preprocess_dataset(
             df, self.candle_length, self.future_steps)
@@ -43,27 +48,41 @@ class TradingEnv:
             MyStrategy = ta.Strategy(
                 name="DCSMA10",
                 ta=[
-                    {"kind": "ohlc4"},
-                    {"kind": "sma", "length": 10},
-                    {"kind": "donchian", "lower_length": 10, "upper_length": 15},
-                    {"kind": "ema", "close": "OHLC4", "length": 10, "suffix": "OHLC4"},
+                    {"kind": "rsi"},
+                    {"kind": "macd"},
+                    {"kind": "stoch"},
+                    {"kind": "bbands"},
+                    {"kind": "roc"}
                 ]
             )
             df.ta.strategy(MyStrategy)
         if add_time_info:
-            df['month'] = df.index.month -1
+            df['month'] = df.index.month - 1
             df['day_of_week'] = df.index.day % 7
             df['time_of_day'] = df.index.hour
         self.X_COLS = df.columns.tolist()
         df = df.dropna()
+        assert(df.index[0] < pd.Timestamp(self.start_time))
         return df
 
-    def get_observation(self, df, step):
-        OHCLV_features = np.array(
-            df.loc[df.index[0+step]:df.index[self.lookback_window-1+step]][self.X_COLS])
-        external_balance_features = np.array(
-            [self.balance, self.wallet_balance])
-        state = (OHCLV_features, external_balance_features)
+    def get_observation(self, df: pd.DataFrame, step: int) -> tuple:
+        if self.run_mode == 'sequential':
+            OHCLV_features = np.array(
+                df.iloc[self.start_index+step-self.lookback_window:self.start_index+step][self.X_COLS])
+            # print(df.iloc[self.start_index+step-self.lookback_window:self.start_index+step][self.X_COLS][-1:].index[0])
+            external_balance_features = np.array(
+                [self.balance, self.wallet_balance])
+            state = (OHCLV_features, external_balance_features)
+        elif self.run_mode == 'random':
+            OHCLV_features = np.array(
+                df.iloc[self.episode_start_index+step-self.lookback_window:self.episode_start_index+step][self.X_COLS])
+            # print(df.iloc[self.episode_start_index+step-self.lookback_window:self.episode_start_index+step][self.X_COLS][-1:].index[0])
+            external_balance_features = np.array(
+                [self.balance, self.wallet_balance])
+            state = (OHCLV_features, external_balance_features)
+        else:
+            run_mode_list = ['sequential', 'random']
+            assert(self.run_mode in run_mode_list)
         return state
 
     def perform_action(self, action, current_price):
@@ -83,7 +102,7 @@ class TradingEnv:
                     (0.25 * action * self.balance) - self.transaction_fee)/current_price
                 self.balance -= amount_crypto_bought*current_price + self.transaction_fee
                 self.wallet_balance += amount_crypto_bought
-            elif self.balance <=  self.transaction_fee:
+            elif self.balance <= self.transaction_fee:
                 action += 9  # Just for evaluation purposes do differ these events
                 # print('Action [1,2,3,4] has been choosen but has no effect since there is no fiat money left to buy')
                 pass
@@ -124,7 +143,11 @@ class TradingEnv:
         return current_state
 
     def retrieve_current_datetime_by_step(self):
-        return self.df.loc[self.df.index[0+self.episode_step]:self.df.index[self.lookback_window-1+self.episode_step]][self.X_COLS].index[-1]
+        # The current datetime is always 1 step further then the last entry of the current state dataframe, i.e. the current time is always the starting time of the next candle
+        if self.run_mode == 'sequential':
+            return self.df.iloc[self.start_index+self.episode_step][self.X_COLS].name
+        else:
+            return self.df.iloc[self.episode_start_index+self.episode_step][self.X_COLS].name
 
     def step(self, action, current_state, episode_counter):
         current_networth = self.net_worth

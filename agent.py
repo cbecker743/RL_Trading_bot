@@ -18,7 +18,7 @@ print('Using TensorFlow {:s} with {:d} GPUs'.format(
 
 
 class DQNAgent:
-    def __init__(self, env, replay_memory_size, min_replay_memory_size, minibatch_size, discount, update_target_every, epsilon, min_epsilon, lr, model_name, custom_tb=False):
+    def __init__(self, env, replay_memory_size, min_replay_memory_size, minibatch_size, discount, update_target_every, epsilon, min_epsilon, lr, epochs, model_name, custom_tb=False):
         self.env = env
         self.replay_memory_size = replay_memory_size
         self.min_replay_memory_size = min_replay_memory_size
@@ -27,6 +27,7 @@ class DQNAgent:
         self.update_target_every = update_target_every
         self.model_name = model_name
         self.lr = lr
+        self.epochs = epochs
         self.model = self.create_model()
         self.target_model = self.create_model()
         self.target_model.set_weights(self.model.get_weights())
@@ -136,7 +137,7 @@ class DQNAgent:
             y.append(current_q_values)
 
         self.model.fit([np.array(X_ohclv), np.array(X_external_balance)], np.array(
-            y), batch_size=self.minibatch_size, verbose=0, shuffle=False)
+            y), batch_size=self.minibatch_size, verbose=0, shuffle=False, epochs=self.epochs)
 
         if done:
             self.target_update_counter += 1
